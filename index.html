@@ -37,14 +37,14 @@
     const gifPreview = document.getElementById('gifPreview');
     const previewCtx = previewCanvas.getContext('2d');
 
-    // Smaller Shlorp image in bottom-left corner
+    // Shlorp: smaller in bottom-left corner
     const shlorpImg = new Image();
-    shlorpImg.src = './assets/shlorp-nobg.png';
+    shlorpImg.src = './assets/shlorp-nobg.png'; // Must exist in assets folder
 
     // User-uploaded image
     let userImg = new Image();
 
-    // On file upload:
+    // On file upload
     uploadInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -56,7 +56,7 @@
           previewCanvas.width = userImg.width;
           previewCanvas.height = userImg.height;
 
-          // Draw it for initial preview
+          // Draw for initial preview
           previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
           previewCtx.drawImage(userImg, 0, 0);
 
@@ -67,7 +67,7 @@
       reader.readAsDataURL(file);
     });
 
-    // Create the GIF when button is clicked
+    // Create the GIF when the button is clicked
     createGifBtn.addEventListener('click', () => {
       if (!userImg.src) return;
 
@@ -75,20 +75,19 @@
       gifPreview.style.display = 'none';
       downloadGifBtn.style.display = 'none';
 
-      // Temporary in-memory canvas for GIF frames
+      // In-memory canvas for GIF frames
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = userImg.width;
       canvas.height = userImg.height;
 
-      // Instantiate the GIF
       const gif = new GIF({
         workers: 2,
         quality: 10,
         workerScript: './js/gif.worker.js',
       });
 
-      // Listen for the finished event
+      // When finished
       gif.on('finished', (blob) => {
         const gifURL = URL.createObjectURL(blob);
         gifPreview.src = gifURL;
@@ -97,7 +96,6 @@
         downloadGifBtn.style.display = 'inline-block';
         createGifBtn.disabled = false;
 
-        // Download
         downloadGifBtn.onclick = () => {
           const a = document.createElement('a');
           a.href = gifURL;
@@ -106,57 +104,70 @@
         };
       });
 
-      // Build frames
-      buildFrames(gif, canvas, ctx);
+      buildWavyFrames(gif, canvas, ctx);
     });
 
-    // Build frames that remove top-left pixels first
-    function buildFrames(gif, canvas, ctx) {
-      const totalFrames = 20;
+    // Build frames with a "ripple" from bottom-left corner
+    function buildWavyFrames(gif, canvas, ctx) {
+      const totalFrames = 30;
+      const waveAmp = 20;       // adjust for ripple amplitude
+      const waveFreq = 0.02;    // adjust for ripple frequency
+      const wavePhaseSpeed = 0.3; // how quickly the wave pattern shifts each frame
 
-      // Dimensions for smaller Shlorp
-      const shlorpW = canvas.width / 4; 
+      // Shlorp at bottom-left, 1/4 size
+      const shlorpW = canvas.width / 4;
       const shlorpH = canvas.height / 4;
-      const shlorpX = 0;                     // left aligned
-      const shlorpY = canvas.height - shlorpH; // near the bottom
+      const shlorpX = 0;                    // left
+      const shlorpY = canvas.height - shlorpH; // bottom
 
       for (let i = 0; i <= totalFrames; i++) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // We want top-left to vanish first:
-        // offsetX, offsetY define how many pixels from top-left are "gone"
-        const offsetX = (i / totalFrames) * canvas.width;
-        const offsetY = (i / totalFrames) * canvas.height;
+        // fraction of how much is "eaten"
+        const fraction = i / totalFrames;
 
-        const sWidth = canvas.width - offsetX;
-        const sHeight = canvas.height - offsetY;
+        // Create a clipping path that starts from the bottom-left
+        // and extends diagonally + wavy toward the top-right.
+        ctx.save(); // Save the state so we can undo the clip later
+        ctx.beginPath();
 
-        if (sWidth > 0 && sHeight > 0) {
-          // Draw remaining portion of userImg
-          ctx.drawImage(
-            userImg,
-            offsetX,    // source x (skip left portion)
-            offsetY,    // source y (skip top portion)
-            sWidth,     // source width
-            sHeight,    // source height
-            0,          // destination x
-            0,          // destination y
-            sWidth,     // destination width
-            sHeight     // destination height
-          );
+        // We'll move from the bottom edge up to the top edge,
+        // but the left boundary is a wave that moves from 0..something
+        // so that more of the image is "gone" as fraction increases.
+
+        // End of wave offset in X (how far from left it's eaten)
+        // We'll let it go from 0 up to canvas.width
+        const baseX = fraction * canvas.width;
+
+        // Move to bottom-right corner (so we cover the entire shape)
+        ctx.moveTo(canvas.width, canvas.height);
+        // Then along top-right corner
+        ctx.lineTo(canvas.width, 0);
+
+        // Then we wave our way down from top to bottom
+        // on the left side. For each Y, define an X that is "eaten."
+        for (let y = 0; y <= canvas.height; y += 2) {
+          let wave = waveAmp * Math.sin((y * waveFreq) + (i * wavePhaseSpeed));
+          let xLeft = baseX - wave;
+          // We don't want xLeft < 0, or we see negative clip area
+          if (xLeft < 0) xLeft = 0;
+          ctx.lineTo(xLeft, y);
         }
 
-        // Now draw a smaller Shlorp at the bottom-left
-        ctx.drawImage(
-          shlorpImg,
-          shlorpX,
-          shlorpY,
-          shlorpW,
-          shlorpH
-        );
+        ctx.closePath();
+        ctx.clip();
 
-        // Add to GIF
+        // Now draw the user image in the clipped area
+        ctx.drawImage(userImg, 0, 0, canvas.width, canvas.height);
+
+        // Draw the smaller Shlorp in the bottom-left
+        ctx.drawImage(shlorpImg, shlorpX, shlorpY, shlorpW, shlorpH);
+
+        // Snapshot this frame
         gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: 80 });
+
+        // Restore so next frame we can set a new clip
+        ctx.restore();
       }
 
       gif.render();
