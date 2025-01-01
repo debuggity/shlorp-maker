@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Shlorp Drinking GIF Maker</title>
+  <!-- A little styling to make it look nice -->
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f0f0f0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+      text-align: center;
+      width: 90%;
+      max-width: 600px;
+    }
+    .container h1 {
+      margin-top: 0;
+      color: #555;
+    }
+    .controls {
+      margin: 1rem 0;
+    }
+    .btn {
+      cursor: pointer;
+      background: #6200ee;
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 5px;
+      margin: 0 0.3rem;
+    }
+    .btn:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    #previewCanvas {
+      max-width: 100%;
+      border: 1px solid #ccc;
+      margin-top: 1rem;
+    }
+    #gifPreview {
+      max-width: 100%;
+      margin-top: 1rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Make a Shlorp Drinking GIF</h1>
+
+    <!-- 1. Upload input -->
+    <div class="controls">
+      <input type="file" id="uploadInput" accept="image/*" />
+    </div>
+
+    <!-- 2. Preview the uploaded image -->
+    <canvas id="previewCanvas"></canvas>
+
+    <!-- 3. Buttons to generate and download the GIF -->
+    <div class="controls">
+      <button class="btn" id="createGifBtn" disabled>Create Shlorp GIF</button>
+      <button class="btn" id="downloadGifBtn" style="display:none;">Download GIF</button>
+    </div>
+
+    <!-- 4. Preview the generated GIF -->
+    <img id="gifPreview" alt="Generated GIF Preview" />
+
+  </div>
+
+  <!-- Include gif.js from a CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+  <script>
+    // Global references
+    const uploadInput = document.getElementById('uploadInput');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const createGifBtn = document.getElementById('createGifBtn');
+    const downloadGifBtn = document.getElementById('downloadGifBtn');
+    const gifPreview = document.getElementById('gifPreview');
+    const previewCtx = previewCanvas.getContext('2d');
+
+    // Load the shlorp image (facing left, no background)
+    const shlorpImg = new Image();
+    shlorpImg.crossOrigin = "anonymous"; 
+    shlorpImg.src = "shlorp-nobg.png";  // Ensure shlorp-nobg.png is in the same folder
+
+    // Store the user uploaded image
+    let userImg = new Image();
+    userImg.crossOrigin = "anonymous"; 
+
+    // When user selects an image file:
+    uploadInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        userImg.onload = function() {
+          // Resize the preview canvas to match the uploaded image's dimensions
+          previewCanvas.width = userImg.width;
+          previewCanvas.height = userImg.height;
+
+          // Draw the image onto the preview canvas
+          previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+          previewCtx.drawImage(userImg, 0, 0);
+
+          // Enable the "Create GIF" button
+          createGifBtn.disabled = false;
+        };
+        userImg.src = evt.target.result; // Set the image src to the uploaded file data
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // When user clicks "Create GIF":
+    createGifBtn.addEventListener('click', function() {
+      if (!userImg.src) return;
+      createGifBtn.disabled = true;       // Disable to prevent multiple clicks
+      gifPreview.style.display = 'none';  // Hide old GIF preview (if any)
+      downloadGifBtn.style.display = 'none';
+
+      // We'll create an in-memory canvas to build frames
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = userImg.width;
+      canvas.height = userImg.height;
+
+      // Create a new GIF
+      const gif = new GIF({
+        workers: 2,
+        quality: 10
+      });
+
+      // When the GIF is finished rendering
+      gif.on('finished', function(blob) {
+        const gifURL = URL.createObjectURL(blob);
+        // Set the GIF preview
+        gifPreview.src = gifURL;
+        gifPreview.style.display = 'block';
+        // Enable download button
+        downloadGifBtn.style.display = 'inline-block';
+        createGifBtn.disabled = false;
+
+        // Clicking download triggers the browser download
+        downloadGifBtn.onclick = function() {
+          const a = document.createElement('a');
+          a.href = gifURL;
+          a.download = 'shlorp.gif';
+          a.click();
+        };
+      });
+
+      // Ensure the shlorp image is loaded before building frames
+      if (!shlorpImg.complete) {
+        shlorpImg.onload = buildFrames;
+      } else {
+        buildFrames();
+      }
+
+      function buildFrames() {
+        // We'll do a simple 20-frame animation
+        const totalFrames = 20;
+
+        for (let i = 0; i <= totalFrames; i++) {
+          // Clear the in-memory canvas
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          // 1. Draw "water" portion of the user's image:
+          //    We'll simulate the water being sucked up from the bottom
+          const visibleHeight = userImg.height * (1 - i / totalFrames);
+          if (visibleHeight > 0) {
+            ctx.drawImage(
+              userImg,
+              0, 0, userImg.width, visibleHeight,  // source portion
+              0, 0, canvas.width, visibleHeight    // destination portion
+            );
+          }
+
+          // 2. Draw shlorp on top (fully)
+          ctx.drawImage(shlorpImg, 0, 0, canvas.width, canvas.height);
+
+          // Add the frame to the GIF
+          // Increase delay if you want a slower animation
+          gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: 80 });
+        }
+
+        // Start rendering the GIF
+        gif.render();
+      }
+    });
+  </script>
+</body>
+</html>
