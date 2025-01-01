@@ -2,12 +2,65 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Shlorp Drinking GIF Maker</title>
-  <link rel="stylesheet" href="./css/style.css" />
+  <title>Shlorp Drinking GIF Maker (Slurping Down)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f0f0f0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      width: 90%;
+      max-width: 600px;
+    }
+    .container h1 {
+      margin-top: 0;
+      color: #555;
+    }
+    .controls {
+      margin: 1rem 0;
+    }
+    .btn {
+      cursor: pointer;
+      background: #6200ee;
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 5px;
+      margin: 0 0.3rem;
+    }
+    .btn:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    #previewCanvas {
+      max-width: 100%;
+      border: 1px solid #ccc;
+      margin-top: 1rem;
+    }
+    #gifPreview {
+      max-width: 100%;
+      margin-top: 1rem;
+      display: none;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h1>Make a Shlorp Drinking GIF</h1>
+    <h1>Make a Shlorp Drinking GIF (Top-Down Slurp)</h1>
 
     <!-- 1. Upload input -->
     <div class="controls">
@@ -27,27 +80,26 @@
     <img id="gifPreview" alt="Generated GIF Preview" />
   </div>
 
-  <!-- Include local gif.js library -->
-  <script src="./js/gif.js"></script>
-
+  <!-- Include LOCAL gif.js -->
+  <!-- Place `gif.js` and `gif.worker.js` in the same folder as this HTML file -->
+  <script src="./gif.js"></script>
   <script>
-    // ---- DOM elements ----
-    const uploadInput   = document.getElementById('uploadInput');
+    // References
+    const uploadInput = document.getElementById('uploadInput');
     const previewCanvas = document.getElementById('previewCanvas');
-    const createGifBtn  = document.getElementById('createGifBtn');
-    const downloadGifBtn= document.getElementById('downloadGifBtn');
-    const gifPreview    = document.getElementById('gifPreview');
-    const previewCtx    = previewCanvas.getContext('2d');
+    const createGifBtn = document.getElementById('createGifBtn');
+    const downloadGifBtn = document.getElementById('downloadGifBtn');
+    const gifPreview = document.getElementById('gifPreview');
+    const previewCtx = previewCanvas.getContext('2d');
 
-    // ---- Load Shlorp image ----
+    // Shlorp image (must be in the same folder or adjust path)
     const shlorpImg = new Image();
-    shlorpImg.src = './assets/shlorp-nobg.png'; 
-    // (No need for crossOrigin if local.)
+    shlorpImg.src = './shlorp-nobg.png';
 
-    // ---- Store user’s uploaded image ----
+    // User image
     let userImg = new Image();
 
-    // ---- When user selects an image ----
+    // 1. Handle file upload
     uploadInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -55,15 +107,14 @@
       const reader = new FileReader();
       reader.onload = (evt) => {
         userImg.onload = () => {
-          // Resize canvas to match uploaded image
+          // Resize previewCanvas to match user image
           previewCanvas.width = userImg.width;
           previewCanvas.height = userImg.height;
-
-          // Draw user’s image for preview
+          // Draw the user image to preview
           previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
           previewCtx.drawImage(userImg, 0, 0);
 
-          // Enable "Create GIF" button
+          // Enable the button
           createGifBtn.disabled = false;
         };
         userImg.src = evt.target.result;
@@ -71,39 +122,41 @@
       reader.readAsDataURL(file);
     });
 
-    // ---- When clicking "Create Shlorp GIF" ----
+    // 2. Create GIF on button click
     createGifBtn.addEventListener('click', () => {
       if (!userImg.src) return;
 
-      // Disable button & hide previous preview
       createGifBtn.disabled = true;
       gifPreview.style.display = 'none';
       downloadGifBtn.style.display = 'none';
 
-      // Make an in-memory canvas to build frames
+      // Create an in-memory canvas for frames
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = userImg.width;
       canvas.height = userImg.height;
 
-      // Create a new GIF instance
+      // Create a GIF instance
       const gif = new GIF({
         workers: 2,
         quality: 10,
-        workerScript: './js/gif.worker.js' // Local worker script
+        workerScript: './gif.worker.js',
       });
 
-      // When GIF finishes rendering
+      // Progress logging (optional)
+      gif.on('progress', (p) => {
+        console.log(`Progress: ${Math.round(p * 100)}%`);
+      });
+
+      // On GIF finished
       gif.on('finished', (blob) => {
         const gifURL = URL.createObjectURL(blob);
-
         gifPreview.src = gifURL;
         gifPreview.style.display = 'block';
 
         downloadGifBtn.style.display = 'inline-block';
         createGifBtn.disabled = false;
 
-        // Download button
         downloadGifBtn.onclick = () => {
           const a = document.createElement('a');
           a.href = gifURL;
@@ -112,55 +165,52 @@
         };
       });
 
-      // Build frames (wave + smaller Shlorp)
+      // Build frames with top-down slurp
       buildFrames(gif, canvas, ctx);
     });
 
-    // ---- Build frames with a wavy "slurp" effect ----
+    // 3. Build frames: top disappears first => image shrinks downward
     function buildFrames(gif, canvas, ctx) {
-      // More frames = smoother
-      const totalFrames = 40; 
-      // Wavy parameters
-      const amplitude   = 8;    // Wave offset in pixels
-      const waveFreq    = 0.06; // Increase or decrease for bigger/smaller waves
-      // Speed at which the water line moves up
-      // We'll linearly animate from full height -> 0
+      const totalFrames = 40; // Increase frames for smoother animation
+      const frameDelay = 60;  // Slower delay for "WAY BETTER" look
 
       for (let i = 0; i <= totalFrames; i++) {
+        // fraction from 0 (full) to 1 (nothing)
+        const fraction = i / totalFrames;
+
+        // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // waterLine goes from userImg.height down to 0
-        const waterLine = userImg.height * (1 - i / totalFrames);
+        // Source/dest for the "remaining" user image
+        const clippedY = userImg.height * fraction;
+        const clippedHeight = userImg.height - clippedY;
 
-        // "Slurp" effect: draw the portion below waterLine with a wavy horizontal offset
-        for (let y = 0; y < waterLine; y++) {
-          // wave offset (shift horizontally)
-          const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
+        // Draw only the portion that hasn't been "slurped" yet
+        if (clippedHeight > 0) {
           ctx.drawImage(
             userImg,
-            0, y, userImg.width, 1,    // Source: 1 horizontal row from userImg
-            offset, y, userImg.width, 1 // Destination: shift in x by offset
+            0, clippedY, // source x,y (start from top that is left)
+            userImg.width, clippedHeight, // source width/height
+            0, clippedY, // destination x,y (draw at same vertical offset)
+            canvas.width, clippedHeight   // destination width/height
           );
         }
 
-        // Draw Shlorp at 1/4 size, near bottom-left
-        // Scale shlorp proportionally to 25% of the full canvas
-        const shlorpWidth  = canvas.width  * 0.25;
-        const shlorpHeight = canvas.height * 0.25;
-        const shlorpX = 0; // left edge
-        const shlorpY = canvas.height - shlorpHeight; // bottom
+        // Draw smaller Shlorp on top (1/4 the canvas size) => center it
+        const shlorpWidth = canvas.width / 4;
+        const shlorpHeight = canvas.height / 4;
+        const shlorpX = (canvas.width - shlorpWidth) / 2;
+        const shlorpY = (canvas.height - shlorpHeight) / 2;
 
-        ctx.drawImage(
-          shlorpImg,
-          0, 0, shlorpImg.width, shlorpImg.height,  // Source
-          shlorpX, shlorpY, shlorpWidth, shlorpHeight // Destination scaled
-        );
+        ctx.drawImage(shlorpImg, shlorpX, shlorpY, shlorpWidth, shlorpHeight);
 
-        // Add frame (slightly faster or slower by adjusting delay)
-        gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: 70 });
+        // Add this frame
+        gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), {
+          delay: frameDelay,
+        });
       }
 
-      // Start GIF rendering
+      // Render the final GIF
       gif.render();
     }
   </script>
