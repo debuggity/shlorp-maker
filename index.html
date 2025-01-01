@@ -27,24 +27,27 @@
     <img id="gifPreview" alt="Generated GIF Preview" />
   </div>
 
-  <!-- Include local gif.js -->
+  <!-- Include local gif.js library -->
   <script src="./js/gif.js"></script>
+
   <script>
-    const uploadInput = document.getElementById('uploadInput');
+    // ---- DOM elements ----
+    const uploadInput   = document.getElementById('uploadInput');
     const previewCanvas = document.getElementById('previewCanvas');
-    const createGifBtn = document.getElementById('createGifBtn');
-    const downloadGifBtn = document.getElementById('downloadGifBtn');
-    const gifPreview = document.getElementById('gifPreview');
-    const previewCtx = previewCanvas.getContext('2d');
+    const createGifBtn  = document.getElementById('createGifBtn');
+    const downloadGifBtn= document.getElementById('downloadGifBtn');
+    const gifPreview    = document.getElementById('gifPreview');
+    const previewCtx    = previewCanvas.getContext('2d');
 
-    // Shlorp: smaller in bottom-left corner
+    // ---- Load Shlorp image ----
     const shlorpImg = new Image();
-    shlorpImg.src = './assets/shlorp-nobg.png'; // Must exist in assets folder
+    shlorpImg.src = './assets/shlorp-nobg.png'; 
+    // (No need for crossOrigin if local.)
 
-    // User-uploaded image
+    // ---- Store user’s uploaded image ----
     let userImg = new Image();
 
-    // On file upload
+    // ---- When user selects an image ----
     uploadInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -52,14 +55,15 @@
       const reader = new FileReader();
       reader.onload = (evt) => {
         userImg.onload = () => {
-          // Match the canvas size to the user image
+          // Resize canvas to match uploaded image
           previewCanvas.width = userImg.width;
           previewCanvas.height = userImg.height;
 
-          // Draw for initial preview
+          // Draw user’s image for preview
           previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
           previewCtx.drawImage(userImg, 0, 0);
 
+          // Enable "Create GIF" button
           createGifBtn.disabled = false;
         };
         userImg.src = evt.target.result;
@@ -67,35 +71,39 @@
       reader.readAsDataURL(file);
     });
 
-    // Create the GIF when the button is clicked
+    // ---- When clicking "Create Shlorp GIF" ----
     createGifBtn.addEventListener('click', () => {
       if (!userImg.src) return;
 
+      // Disable button & hide previous preview
       createGifBtn.disabled = true;
       gifPreview.style.display = 'none';
       downloadGifBtn.style.display = 'none';
 
-      // In-memory canvas for GIF frames
+      // Make an in-memory canvas to build frames
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = userImg.width;
       canvas.height = userImg.height;
 
+      // Create a new GIF instance
       const gif = new GIF({
         workers: 2,
         quality: 10,
-        workerScript: './js/gif.worker.js',
+        workerScript: './js/gif.worker.js' // Local worker script
       });
 
-      // When finished
+      // When GIF finishes rendering
       gif.on('finished', (blob) => {
         const gifURL = URL.createObjectURL(blob);
+
         gifPreview.src = gifURL;
         gifPreview.style.display = 'block';
 
         downloadGifBtn.style.display = 'inline-block';
         createGifBtn.disabled = false;
 
+        // Download button
         downloadGifBtn.onclick = () => {
           const a = document.createElement('a');
           a.href = gifURL;
@@ -104,72 +112,55 @@
         };
       });
 
-      buildWavyFrames(gif, canvas, ctx);
+      // Build frames (wave + smaller Shlorp)
+      buildFrames(gif, canvas, ctx);
     });
 
-    // Build frames with a "ripple" from bottom-left corner
-    function buildWavyFrames(gif, canvas, ctx) {
-      const totalFrames = 30;
-      const waveAmp = 20;       // adjust for ripple amplitude
-      const waveFreq = 0.02;    // adjust for ripple frequency
-      const wavePhaseSpeed = 0.3; // how quickly the wave pattern shifts each frame
-
-      // Shlorp at bottom-left, 1/4 size
-      const shlorpW = canvas.width / 4;
-      const shlorpH = canvas.height / 4;
-      const shlorpX = 0;                    // left
-      const shlorpY = canvas.height - shlorpH; // bottom
+    // ---- Build frames with a wavy "slurp" effect ----
+    function buildFrames(gif, canvas, ctx) {
+      // More frames = smoother
+      const totalFrames = 40; 
+      // Wavy parameters
+      const amplitude   = 8;    // Wave offset in pixels
+      const waveFreq    = 0.06; // Increase or decrease for bigger/smaller waves
+      // Speed at which the water line moves up
+      // We'll linearly animate from full height -> 0
 
       for (let i = 0; i <= totalFrames; i++) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // fraction of how much is "eaten"
-        const fraction = i / totalFrames;
+        // waterLine goes from userImg.height down to 0
+        const waterLine = userImg.height * (1 - i / totalFrames);
 
-        // Create a clipping path that starts from the bottom-left
-        // and extends diagonally + wavy toward the top-right.
-        ctx.save(); // Save the state so we can undo the clip later
-        ctx.beginPath();
-
-        // We'll move from the bottom edge up to the top edge,
-        // but the left boundary is a wave that moves from 0..something
-        // so that more of the image is "gone" as fraction increases.
-
-        // End of wave offset in X (how far from left it's eaten)
-        // We'll let it go from 0 up to canvas.width
-        const baseX = fraction * canvas.width;
-
-        // Move to bottom-right corner (so we cover the entire shape)
-        ctx.moveTo(canvas.width, canvas.height);
-        // Then along top-right corner
-        ctx.lineTo(canvas.width, 0);
-
-        // Then we wave our way down from top to bottom
-        // on the left side. For each Y, define an X that is "eaten."
-        for (let y = 0; y <= canvas.height; y += 2) {
-          let wave = waveAmp * Math.sin((y * waveFreq) + (i * wavePhaseSpeed));
-          let xLeft = baseX - wave;
-          // We don't want xLeft < 0, or we see negative clip area
-          if (xLeft < 0) xLeft = 0;
-          ctx.lineTo(xLeft, y);
+        // "Slurp" effect: draw the portion below waterLine with a wavy horizontal offset
+        for (let y = 0; y < waterLine; y++) {
+          // wave offset (shift horizontally)
+          const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
+          ctx.drawImage(
+            userImg,
+            0, y, userImg.width, 1,    // Source: 1 horizontal row from userImg
+            offset, y, userImg.width, 1 // Destination: shift in x by offset
+          );
         }
 
-        ctx.closePath();
-        ctx.clip();
+        // Draw Shlorp at 1/4 size, near bottom-left
+        // Scale shlorp proportionally to 25% of the full canvas
+        const shlorpWidth  = canvas.width  * 0.25;
+        const shlorpHeight = canvas.height * 0.25;
+        const shlorpX = 0; // left edge
+        const shlorpY = canvas.height - shlorpHeight; // bottom
 
-        // Now draw the user image in the clipped area
-        ctx.drawImage(userImg, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(
+          shlorpImg,
+          0, 0, shlorpImg.width, shlorpImg.height,  // Source
+          shlorpX, shlorpY, shlorpWidth, shlorpHeight // Destination scaled
+        );
 
-        // Draw the smaller Shlorp in the bottom-left
-        ctx.drawImage(shlorpImg, shlorpX, shlorpY, shlorpW, shlorpH);
-
-        // Snapshot this frame
-        gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: 80 });
-
-        // Restore so next frame we can set a new clip
-        ctx.restore();
+        // Add frame (slightly faster or slower by adjusting delay)
+        gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: 70 });
       }
 
+      // Start GIF rendering
       gif.render();
     }
   </script>
