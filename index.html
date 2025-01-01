@@ -96,7 +96,7 @@
     // Load the shlorp image (facing left, no background)
     const shlorpImg = new Image();
     shlorpImg.crossOrigin = "anonymous"; 
-    shlorpImg.src = "shlorp-nobg.png";  // Ensure shlorp-nobg.png is in the same folder
+    shlorpImg.src = "shlorp-nobg.png";  // Make sure this file is in the same folder
 
     // Store the user uploaded image
     let userImg = new Image();
@@ -142,7 +142,13 @@
       // Create a new GIF
       const gif = new GIF({
         workers: 2,
-        quality: 10
+        quality: 10,
+        workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
+      });
+
+      // (Optional) Track progress in console if needed
+      gif.on('progress', function(p) {
+        console.log('GIF building progress:', Math.round(p * 100) + '%');
       });
 
       // When the GIF is finished rendering
@@ -190,11 +196,10 @@
             );
           }
 
-          // 2. Draw shlorp on top (fully)
+          // 2. Draw shlorp on top (fully covering)
           ctx.drawImage(shlorpImg, 0, 0, canvas.width, canvas.height);
 
           // Add the frame to the GIF
-          // Increase delay if you want a slower animation
           gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: 80 });
         }
 
