@@ -118,6 +118,9 @@
       const amplitude   = 8;
       const waveFreq    = 0.06;
 
+      // precompute shlorp's aspect ratio once
+      const shlorpRatio = shlorpImg.height / shlorpImg.width;
+
       for (let i = 0; i <= totalFrames; i++) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -134,15 +137,18 @@
           );
         }
 
-        // flip shlorp horizontally and align its bottom to the waterline
-        const shlorpWidth  = canvas.width  * 0.25;
-        const shlorpHeight = canvas.height * 0.25;
-        const shlorpX      = 0; // left side
-        const shlorpY      = waterLine - shlorpHeight;
+        // set a fraction of canvas width for shlorp, then preserve aspect ratio
+        const shlorpScale  = 0.3;
+        const shlorpWidth  = canvas.width * shlorpScale;
+        const shlorpHeight = shlorpWidth * shlorpRatio;
 
+        // align bottom to the waterLine
+        const shlorpX = 0;
+        const shlorpY = waterLine - shlorpHeight - (canvas.width/15);
+
+        // flip horizontally, so we set scale(-1,1) and draw at negative x
         ctx.save();
-        ctx.scale(-1, 1); 
-        // after flipping horizontally, the anchor will be at negative x
+        ctx.scale(-1, 1);
         ctx.drawImage(
           shlorpImg,
           0, 0, shlorpImg.width, shlorpImg.height,
@@ -155,6 +161,7 @@
 
       gif.render();
     }
+
   </script>
 </body>
 </html>
