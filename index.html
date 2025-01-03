@@ -56,6 +56,15 @@
     // ---- store user’s uploaded image ----
     let userImg = new Image();
 
+    // helper to scale images into a 752x752 bounding box
+    function fitTo752(img) {
+      const maxSize = 752;
+      const scale = Math.min(maxSize / img.width, maxSize / img.height);
+      const newWidth = Math.round(img.width * scale);
+      const newHeight = Math.round(img.height * scale);
+      return { newWidth, newHeight };
+    }
+
     // ---- when user selects an image ----
     uploadInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -64,13 +73,14 @@
       const reader = new FileReader();
       reader.onload = (evt) => {
         userImg.onload = () => {
-          // resize canvas to match uploaded image
-          previewCanvas.width = userImg.width;
-          previewCanvas.height = userImg.height;
+          // scale image to 752 bounding box
+          const { newWidth, newHeight } = fitTo752(userImg);
 
-          // draw user’s image for preview
-          previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-          previewCtx.drawImage(userImg, 0, 0);
+          // resize preview canvas and draw scaled image
+          previewCanvas.width = newWidth;
+          previewCanvas.height = newHeight;
+          previewCtx.clearRect(0, 0, newWidth, newHeight);
+          previewCtx.drawImage(userImg, 0, 0, newWidth, newHeight);
 
           // enable "create gif" button
           createGifBtn.disabled = false;
@@ -89,11 +99,11 @@
       gifPreview.style.display = 'none';
       downloadGifBtn.style.display = 'none';
 
-      // make an in-memory canvas to build frames
+      // set up in-memory canvas to match preview's scaled size
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      canvas.width = userImg.width;
-      canvas.height = userImg.height;
+      canvas.width = previewCanvas.width;
+      canvas.height = previewCanvas.height;
 
       // create a new gif instance
       const gif = new GIF({
@@ -121,7 +131,7 @@
       // figure out if overlay mode is on
       const overlayMode = overlayModeCheck.checked;
 
-      // build frames w/ or w/o overlay mode
+      // build frames w/ wave effect
       buildFrames(gif, canvas, ctx, overlayMode);
     });
 
@@ -137,36 +147,40 @@
       for (let i = 0; i <= totalFrames; i++) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // if overlay mode is on, draw the entire user image first
+        // if overlay mode is on, draw entire user image first
         if (overlayMode) {
-          ctx.drawImage(userImg, 0, 0);
+          ctx.drawImage(userImg, 0, 0, userImg.width, userImg.height,
+            0, 0, canvas.width, canvas.height);
         }
 
-        // water line anim
-        const waterLine = userImg.height * (i / totalFrames);
+        // compute water line in scaled coords
+        const waterLine = canvas.height * (i / totalFrames);
 
         if (!overlayMode) {
-          // original approach: wave-distort everything below waterLine
-          for (let y = waterLine; y < userImg.height; y++) {
+          // wave-distort everything below waterLine
+          for (let y = waterLine; y < canvas.height; y++) {
             const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
+            // map y from final canvas back to userImg
+            const srcY = Math.floor((y / canvas.height) * userImg.height);
             ctx.drawImage(
               userImg,
-              0, y, userImg.width, 1,
-              offset, y, userImg.width, 1
+              0, srcY, userImg.width, 1,
+              offset, y, canvas.width, 1
             );
           }
         } else {
-          // overlay approach: wave-distort bottom portion and tint it blue
-          for (let y = waterLine; y < userImg.height; y++) {
+          // wave-distort bottom portion and then tint it
+          for (let y = waterLine; y < canvas.height; y++) {
             const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
+            const srcY = Math.floor((y / canvas.height) * userImg.height);
             ctx.drawImage(
               userImg,
-              0, y, userImg.width, 1,
-              offset, y, userImg.width, 1
+              0, srcY, userImg.width, 1,
+              offset, y, canvas.width, 1
             );
           }
 
-          // now overlay a partial blue to simulate water
+          // overlay a partial blue to simulate water
           ctx.save();
           ctx.globalCompositeOperation = 'source-atop';
           ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
@@ -174,14 +188,14 @@
           ctx.restore();
         }
 
-        // now place shlorp
+        // place shlorp
         const shlorpScale  = 0.3;
         const shlorpWidth  = canvas.width * shlorpScale;
         const shlorpHeight = shlorpWidth * shlorpRatio;
         const shlorpX = -(canvas.width / 15);
         const shlorpY = waterLine - shlorpHeight + (shlorpHeight * 0.0738);
 
-        // flip horizontally so shlorp looks the same as og
+        // flip horizontally so it matches original direction
         ctx.save();
         ctx.scale(-1, 1);
         ctx.drawImage(
