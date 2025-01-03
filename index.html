@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <title>shlorp drinking gif maker</title>
   <link rel="stylesheet" href="./css/style.css" />
 </head>
@@ -14,16 +14,24 @@
       <input type="file" id="uploadInput" accept="image/*" />
     </div>
 
-    <!-- 2. preview the uploaded image -->
+    <!-- 2. overlay mode toggle -->
+    <div class="controls">
+      <label>
+        <input type="checkbox" id="overlayModeCheckbox" />
+        overlay mode
+      </label>
+    </div>
+
+    <!-- 3. preview the uploaded image -->
     <canvas id="previewCanvas"></canvas>
 
-    <!-- 3. buttons to generate and download the gif -->
+    <!-- 4. buttons to generate and download the gif -->
     <div class="controls">
       <button class="btn" id="createGifBtn" disabled>create shlorp gif</button>
       <button class="btn" id="downloadGifBtn" style="display:none;">download gif</button>
     </div>
 
-    <!-- 4. preview the generated gif -->
+    <!-- 5. preview the generated gif -->
     <img id="gifPreview" alt="generated gif preview" />
   </div>
 
@@ -32,12 +40,13 @@
 
   <script>
     // ---- dom elements ----
-    const uploadInput    = document.getElementById('uploadInput');
-    const previewCanvas  = document.getElementById('previewCanvas');
-    const createGifBtn   = document.getElementById('createGifBtn');
-    const downloadGifBtn = document.getElementById('downloadGifBtn');
-    const gifPreview     = document.getElementById('gifPreview');
-    const previewCtx     = previewCanvas.getContext('2d');
+    const uploadInput      = document.getElementById('uploadInput');
+    const previewCanvas    = document.getElementById('previewCanvas');
+    const createGifBtn     = document.getElementById('createGifBtn');
+    const downloadGifBtn   = document.getElementById('downloadGifBtn');
+    const gifPreview       = document.getElementById('gifPreview');
+    const previewCtx       = previewCanvas.getContext('2d');
+    const overlayModeCheck = document.getElementById('overlayModeCheckbox');
 
     // ---- load shlorp image ----
     const shlorpImg = new Image();
@@ -108,45 +117,63 @@
         };
       });
 
-      // build frames with new slurp direction
-      buildFrames(gif, canvas, ctx);
+      // figure out if overlay mode is on
+      const overlayMode = overlayModeCheck.checked;
+
+      // build frames w/ or w/o overlay mode
+      buildFrames(gif, canvas, ctx, overlayMode);
     });
 
-    // ---- build frames with a wavy "slurp" effect (top to bottom) ----
-    function buildFrames(gif, canvas, ctx) {
+    // ---- build frames with wave effect, with or without overlay mode ----
+    function buildFrames(gif, canvas, ctx, overlayMode) {
       const totalFrames = 40;
       const amplitude   = 8;
       const waveFreq    = 0.06;
 
-      // precompute shlorp's aspect ratio once
+      // precompute shlorp ratio
       const shlorpRatio = shlorpImg.height / shlorpImg.width;
 
       for (let i = 0; i <= totalFrames; i++) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // waterline goes from 0 -> userImg.height as i increases
-        const waterLine = userImg.height * (i / totalFrames);
-
-        // draw the portion from waterLine down to the bottom with a wavy offset
-        for (let y = waterLine; y < userImg.height; y++) {
-          const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
-          ctx.drawImage(
-            userImg,
-            0, y, userImg.width, 1,
-            offset, y, userImg.width, 1
-          );
+        // if overlay mode is on, draw the entire user image first
+        if (overlayMode) {
+          ctx.drawImage(userImg, 0, 0);
         }
 
-        // set a fraction of canvas width for shlorp, then preserve aspect ratio
+        // water line anim
+        const waterLine = userImg.height * (i / totalFrames);
+
+        if (!overlayMode) {
+          // original approach: wave-distort everything below waterLine
+          for (let y = waterLine; y < userImg.height; y++) {
+            const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
+            ctx.drawImage(
+              userImg,
+              0, y, userImg.width, 1,
+              offset, y, userImg.width, 1
+            );
+          }
+        } else {
+          // overlay approach: wave-distort the bottom portion but leave top
+          for (let y = waterLine; y < userImg.height; y++) {
+            const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
+            ctx.drawImage(
+              userImg,
+              0, y, userImg.width, 1,
+              offset, y, userImg.width, 1
+            );
+          }
+        }
+
+        // now place shlorp
         const shlorpScale  = 0.3;
         const shlorpWidth  = canvas.width * shlorpScale;
         const shlorpHeight = shlorpWidth * shlorpRatio;
+        const shlorpX = -(canvas.width / 15);
+        const shlorpY = waterLine - shlorpHeight + (shlorpHeight * 0.0738);
 
-        // align bottom to the waterLine
-        const shlorpX = -(canvas.width/15);
-        const shlorpY = waterLine - shlorpHeight + shlorpHeight*.0738;
-
-        // flip horizontally, so we set scale(-1,1) and draw at negative x
+        // flip horizontally so shlorp looks the same as og
         ctx.save();
         ctx.scale(-1, 1);
         ctx.drawImage(
@@ -156,12 +183,13 @@
         );
         ctx.restore();
 
+        // add frame
         gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: 70 });
       }
 
+      // finalize gif
       gif.render();
     }
-
   </script>
 </body>
 </html>
