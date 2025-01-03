@@ -143,8 +143,8 @@
         const shlorpHeight = shlorpWidth * shlorpRatio;
 
         // align bottom to the waterLine
-        const shlorpX = 0;
-        const shlorpY = waterLine - shlorpHeight - (canvas.width/15);
+        const shlorpX = (canvas.width/15);
+        const shlorpY = waterLine - shlorpHeight + (canvas.height/15);
 
         // flip horizontally, so we set scale(-1,1) and draw at negative x
         ctx.save();
