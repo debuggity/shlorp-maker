@@ -33,6 +33,7 @@
 
     <!-- 5. preview the generated gif -->
     <img id="gifPreview" alt="generated gif preview" />
+
   </div>
 
   <!-- include local gif.js library -->
@@ -155,7 +156,7 @@
             );
           }
         } else {
-          // overlay approach: wave-distort the bottom portion but leave top
+          // overlay approach: wave-distort bottom portion and tint it blue
           for (let y = waterLine; y < userImg.height; y++) {
             const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
             ctx.drawImage(
@@ -164,6 +165,13 @@
               offset, y, userImg.width, 1
             );
           }
+
+          // now overlay a partial blue to simulate water
+          ctx.save();
+          ctx.globalCompositeOperation = 'source-atop';
+          ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
+          ctx.fillRect(0, waterLine, canvas.width, canvas.height - waterLine);
+          ctx.restore();
         }
 
         // now place shlorp
