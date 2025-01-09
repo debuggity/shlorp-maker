@@ -2,55 +2,67 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>shlorp drinking gif maker</title>
+  <title>Shlorp Drinking GIF Maker</title>
   <link rel="stylesheet" href="./css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <div class="home-button">
-    <a href="index.html">home</a>
-  </div>  
-
-  <div class="container">
-    <h1>make a shlorp drinking gif</h1>
-
-    <div class="controls">
-      <label for="uploadInput" class="custom-upload-btn">choose an image</label>
-      <input type="file" id="uploadInput" accept="image/*" />
+  <header>
+    <div class="logo">
+      <img src="./assets/shlorp-nobg.png" alt="Shlorp Logo" />
+      <h1>Shlorp GIF Maker</h1>
     </div>
-
-    <div class="controls">
-      <label for="modeSelect">choose style:</label>
-      <select id="modeSelect">
-        <option value="wave-distort">classic wave</option>
-        <option value="overlay-distort">overlay wave</option>
-        <option value="puddle" selected>puddle perspective</option>
-      </select>
+    <div class="home-button">
+      <a href="index.html">🏠 Home</a>
     </div>
+  </header>  
 
-    <div class="toggle-container">
-      <label class="toggle-switch">
-        <input type="checkbox" id="overlayModeCheckbox" checked />
-        <span class="slider round"></span>
-      </label>
-      <span class="toggle-label">overlay mode</span>
-    </div>
+  <main class="container">
+    <section class="intro">
+      <p>Create adorable GIFs of your favorite animals shlorping!</p>
+    </section>
 
-    <div class="speed-control">
-      <label for="speedRange">speed (delay per frame ms):</label>
-      <input type="range" id="speedRange" min="40" max="120" step="10" value="70" />
-      <span id="speedValue">70</span>
-    </div>
+    <section class="controls-section">
+      <div class="controls">
+        <label for="uploadInput" class="custom-upload-btn">
+          <img src="./assets/shlorp-nobg.png" alt="Upload Icon" class="icon" />
+          Choose an Image
+        </label>
+        <input type="file" id="uploadInput" accept="image/*" />
+      </div>
 
-    <canvas id="previewCanvas"></canvas>
+      <div class="controls">
+        <label for="modeSelect">Choose Style:</label>
+        <select id="modeSelect">
+          <option value="wave-distort">✨ Classic Wave</option>
+          <option value="overlay-distort">🌊 Overlay Wave</option>
+          <option value="puddle" selected>💧 Puddle Perspective</option>
+        </select>
+      </div>
+      
+      <div class="speed-control">
+        <label for="speedRange">Speed (delay per frame ms):</label>
+        <input type="range" id="speedRange" min="40" max="120" step="10" value="70" />
+        <span id="speedValue">70</span>
+      </div>
+    </section>
 
-    <div class="controls button-group">
-      <button class="btn" id="createGifBtn" disabled>create shlorp gif</button>
-      <button class="btn" id="downloadGifBtn" style="display:none;">download gif</button>
-    </div>
+    <section class="preview-section">
+      <canvas id="previewCanvas"></canvas>
+      <img id="gifPreview" alt="Generated GIF Preview" />
+    </section>
 
-    <img id="gifPreview" alt="generated gif preview" />
-  </div>
+    <section class="buttons-section">
+      <button class="btn" id="createGifBtn" disabled>Create Shlorp GIF</button>
+      <button class="btn" id="downloadGifBtn" style="display:none;">📥 Download GIF</button>
+    </section>
+  </main>
+
+  <footer>
+    <p></p>
+    <img src="./assets/shlorp-nobg.png" alt="Shlorp Footer Logo" class="footer-logo" />
+  </footer>
 
   <script src="./js/gif.js"></script>
 
@@ -61,7 +73,6 @@
     const downloadGifBtn   = document.getElementById('downloadGifBtn');
     const gifPreview       = document.getElementById('gifPreview');
     const previewCtx       = previewCanvas.getContext('2d');
-    const overlayModeCheck = document.getElementById('overlayModeCheckbox');
     const speedRange       = document.getElementById('speedRange');
     const speedValue       = document.getElementById('speedValue');
     const modeSelect       = document.getElementById('modeSelect');
@@ -153,7 +164,7 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         if (chosenMode === 'overlay-distort') {
-          // overlay wave
+          // Overlay Wave
           ctx.drawImage(userImg, 0, 0, userImg.width, userImg.height,
             0, 0, canvas.width, canvas.height);
           const waterLine = canvas.height * (i / totalFrames);
@@ -169,7 +180,7 @@
           }
           ctx.save();
           ctx.globalCompositeOperation = 'source-atop';
-          ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
+          ctx.fillStyle = 'rgba(135, 206, 235, 0.3)'; // Light Sky Blue with transparency
           ctx.fillRect(0, waterLine, canvas.width, canvas.height - waterLine);
           ctx.restore();
 
@@ -189,7 +200,7 @@
           ctx.restore();
 
         } else if (chosenMode === 'wave-distort') {
-          // classic wave-distort
+          // Classic Wave Distort
           const waterLine = canvas.height * (i / totalFrames);
 
           for (let y = waterLine; y < canvas.height; y++) {
@@ -201,7 +212,7 @@
               offset, y, canvas.width, 1
             );
           }
-          // normal top part
+          // Normal Top Part
           ctx.drawImage(
             userImg,
             0, 0, userImg.width, Math.floor((userImg.height * i) / totalFrames),
@@ -224,17 +235,12 @@
           ctx.restore();
 
         } else if (chosenMode === 'puddle') {
-          // watery region: top half. from y=0 to y=halfHeight
-          // below that is normal. pinch top corners inward at y=0
-          // expand to full width at halfHeight
-
+          // Puddle Perspective
           const halfHeight = canvas.height;
 
-          // how narrow do we want the top to be?  let's say 50% of full width
           const topWidth = 0.5 * canvas.width; 
           const fullWidth = canvas.width;
 
-          // loop through top half, applying perspective pinch + wave
           for (let y = 0; y < halfHeight; y++) {
             const ratio = y / halfHeight;
             const lineWidth = topWidth + ratio * (fullWidth - topWidth);
@@ -242,7 +248,6 @@
             const waveOffset = amplitude * Math.sin((y * waveFreq) + (i * 0.5));
             const xOffset = (canvas.width - lineWidth) / 2 + waveOffset;
 
-            // figure out which line of userImg we sample from
             const srcY = Math.floor((y / canvas.height) * userImg.height);
 
             ctx.drawImage(
@@ -252,14 +257,11 @@
             );
           }
 
-          // place shlorp at the "horizon" => halfHeight
-          const shlorpScale = 0.25; // tweak as needed
+          const shlorpScale = 0.25; // Adjusted for better proportion
           const shlorpWidth = canvas.width * shlorpScale;
           const shlorpHeight = shlorpWidth * shlorpRatio;
 
-          // center shlorp horizontally
           const shlorpX = (canvas.width - shlorpWidth) / 2;
-          // have him perched just above the horizon
           const shlorpY = halfHeight - shlorpHeight;
 
           ctx.drawImage(
