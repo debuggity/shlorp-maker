@@ -248,12 +248,12 @@
             const waveOffset = amplitude * Math.sin((y * waveFreq) + (i * 0.5));
             const xOffset = (canvas.width - lineWidth) / 2 + waveOffset;
 
-            const srcY = Math.floor(((y+halfHeight-3) / canvas.height) * userImg.height);
+            const srcY = Math.floor((y / canvas.height) * userImg.height);
 
             ctx.drawImage(
               userImg,
               0, srcY, userImg.width, 1,
-              xOffset, y, lineWidth, 1
+              xOffset, (y + halfHeight - 3), lineWidth, 1
             );
           }
 
