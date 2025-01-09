@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -19,6 +19,16 @@
       <input type="file" id="uploadInput" accept="image/*" />
     </div>
 
+    <!-- new style selection -->
+    <div class="controls">
+      <label for="modeSelect">choose style:</label>
+      <select id="modeSelect">
+        <option value="wave-distort">classic wave</option>
+        <option value="overlay-distort" selected>overlay wave</option>
+        <option value="puddle">puddle drinking</option>
+      </select>
+    </div>
+
     <div class="toggle-container">
       <label class="toggle-switch">
         <input type="checkbox" id="overlayModeCheckbox" checked />
@@ -27,9 +37,8 @@
       <span class="toggle-label">overlay mode</span>
     </div>
 
-    <!-- new speed control -->
     <div class="speed-control">
-      <label for="speedRange">speed (delay per frame ms): </label>
+      <label for="speedRange">speed (delay per frame ms):</label>
       <input type="range" id="speedRange" min="40" max="120" step="10" value="70" />
       <span id="speedValue">70</span>
     </div>
@@ -42,7 +51,6 @@
     </div>
 
     <img id="gifPreview" alt="generated gif preview" />
-
   </div>
 
   <script src="./js/gif.js"></script>
@@ -57,6 +65,7 @@
     const overlayModeCheck = document.getElementById('overlayModeCheckbox');
     const speedRange       = document.getElementById('speedRange');
     const speedValue       = document.getElementById('speedValue');
+    const modeSelect       = document.getElementById('modeSelect');
 
     const shlorpImg = new Image();
     shlorpImg.src = './assets/shlorp-nobg.png';
@@ -90,7 +99,6 @@
       reader.readAsDataURL(file);
     });
 
-    // update displayed speed value
     speedRange.addEventListener('input', () => {
       speedValue.textContent = speedRange.value;
     });
@@ -128,40 +136,29 @@
         };
       });
 
-      const overlayMode = overlayModeCheck.checked;
       const frameDelay = parseInt(speedRange.value, 10);
+      const chosenMode = modeSelect.value;
 
-      buildFrames(gif, canvas, ctx, overlayMode, frameDelay);
+      buildFrames(gif, canvas, ctx, chosenMode, frameDelay);
+
+      gif.render();
     });
 
-    function buildFrames(gif, canvas, ctx, overlayMode, frameDelay) {
+    function buildFrames(gif, canvas, ctx, chosenMode, frameDelay) {
       const totalFrames = 24;
       const amplitude = 8;
       const waveFreq = 0.06;
-
       const shlorpRatio = shlorpImg.height / shlorpImg.width;
 
       for (let i = 0; i <= totalFrames; i++) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        if (overlayMode) {
+        if (chosenMode === 'overlay-distort') {
+          // overlay wave mode
           ctx.drawImage(userImg, 0, 0, userImg.width, userImg.height,
             0, 0, canvas.width, canvas.height);
-        }
+          const waterLine = canvas.height * (i / totalFrames);
 
-        const waterLine = canvas.height * (i / totalFrames);
-
-        if (!overlayMode) {
-          for (let y = waterLine; y < canvas.height; y++) {
-            const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
-            const srcY = Math.floor((y / canvas.height) * userImg.height);
-            ctx.drawImage(
-              userImg,
-              0, srcY, userImg.width, 1,
-              offset, y, canvas.width, 1
-            );
-          }
-        } else {
           for (let y = waterLine; y < canvas.height; y++) {
             const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
             const srcY = Math.floor((y / canvas.height) * userImg.height);
@@ -176,27 +173,102 @@
           ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
           ctx.fillRect(0, waterLine, canvas.width, canvas.height - waterLine);
           ctx.restore();
+
+          // shlorp
+          const shlorpScale = 0.3;
+          const shlorpWidth = canvas.width * shlorpScale;
+          const shlorpHeight = shlorpWidth * shlorpRatio;
+          const shlorpX = -(canvas.width / 15);
+          const shlorpY = waterLine - shlorpHeight + (shlorpHeight * 0.0738);
+
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            shlorpImg,
+            0, 0, shlorpImg.width, shlorpImg.height,
+            -shlorpWidth, shlorpY, shlorpWidth, shlorpHeight
+          );
+          ctx.restore();
+
+        } else if (chosenMode === 'wave-distort') {
+          // classic wave-distort
+          const waterLine = canvas.height * (i / totalFrames);
+
+          // distort below water
+          for (let y = waterLine; y < canvas.height; y++) {
+            const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
+            const srcY = Math.floor((y / canvas.height) * userImg.height);
+            ctx.drawImage(
+              userImg,
+              0, srcY, userImg.width, 1,
+              offset, y, canvas.width, 1
+            );
+          }
+          // normal top part
+          ctx.drawImage(
+            userImg,
+            0, 0, userImg.width, Math.floor((userImg.height * i) / totalFrames),
+            0, 0, canvas.width, (canvas.height * i) / totalFrames
+          );
+
+          // draw shlorp similarly
+          const shlorpScale = 0.3;
+          const shlorpWidth = canvas.width * shlorpScale;
+          const shlorpHeight = shlorpWidth * shlorpRatio;
+          const shlorpX = -(canvas.width / 15);
+          const shlorpY = waterLine - shlorpHeight + (shlorpHeight * 0.0738);
+
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            shlorpImg,
+            0, 0, shlorpImg.width, shlorpImg.height,
+            -shlorpWidth, shlorpY, shlorpWidth, shlorpHeight
+          );
+          ctx.restore();
+
+        } else if (chosenMode === 'puddle') {
+          // new mode: puddle drinking
+          // distortion on the bottom of the image, plus stationary shlorp
+          const distortHeight = canvas.height * 0.3;
+          const normalHeight = canvas.height - distortHeight;
+
+          // draw top part un-distorted
+          ctx.drawImage(
+            userImg,
+            0, 0, userImg.width, Math.floor(userImg.height * (normalHeight / canvas.height)),
+            0, 0, canvas.width, normalHeight
+          );
+
+          // distort bottom part to look like a rippling puddle
+          const framesFraction = i / totalFrames;
+          for (let y = normalHeight; y < canvas.height; y++) {
+            const offset = amplitude * Math.sin((y * waveFreq) + (i * 0.5));
+            const srcY = Math.floor((y / canvas.height) * userImg.height);
+            ctx.drawImage(
+              userImg,
+              0, srcY, userImg.width, 1,
+              offset, y, canvas.width, 1
+            );
+          }
+
+          // draw shlorp in bottom region as if drinking
+          // he won't move, so no wave or X offset
+          const shlorpScale = 0.3;
+          const shlorpWidth = canvas.width * shlorpScale;
+          const shlorpHeight = shlorpWidth * shlorpRatio;
+          const shlorpX = canvas.width * 0.35; 
+          const shlorpY = normalHeight - (shlorpHeight * 0.5);
+
+          ctx.drawImage(
+            shlorpImg,
+            0, 0, shlorpImg.width, shlorpImg.height,
+            shlorpX, shlorpY, shlorpWidth, shlorpHeight
+          );
         }
-
-        const shlorpScale = 0.3;
-        const shlorpWidth = canvas.width * shlorpScale;
-        const shlorpHeight = shlorpWidth * shlorpRatio;
-        const shlorpX = -(canvas.width / 15);
-        const shlorpY = waterLine - shlorpHeight + (shlorpHeight * 0.0738);
-
-        ctx.save();
-        ctx.scale(-1, 1);
-        ctx.drawImage(
-          shlorpImg,
-          0, 0, shlorpImg.width, shlorpImg.height,
-          -shlorpWidth, shlorpY, shlorpWidth, shlorpHeight
-        );
-        ctx.restore();
 
         gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: frameDelay });
       }
-
-      gif.render();
     }
   </script>
 </body>
