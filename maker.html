@@ -224,31 +224,28 @@
           ctx.restore();
 
         } else if (chosenMode === 'puddle') {
-          // perspective approach: pinch top corners to zero width at y=0
-          // then let it expand to full width by horizonY, wave-distort all lines
-          // place shlorp at horizonY to look like he's drinking from that edge
-
-          const horizonY = Math.floor(canvas.height * 0.3); // tweak as desired
+          // set horizon about halfway, corners ~ half width at top
+          const horizonY = Math.floor(canvas.height * 0.5);
+          const topWidth = 0.5 * canvas.width; // means each top corner is at 1/4 and 3/4
+          const fullWidth = canvas.width;
 
           for (let y = 0; y < canvas.height; y++) {
-            const srcY = Math.floor((y / canvas.height) * userImg.height);
             const waveOffset = amplitude * Math.sin((y * waveFreq) + (i * 0.5));
+            const srcY = Math.floor((y / canvas.height) * userImg.height);
 
-            if (y <= horizonY) {
-              // scale from 0 width at top to full width at horizon
-              const ratio = y / horizonY; 
-              const lineWidth = ratio * canvas.width;
+            if (y < horizonY) {
+              // expand lineWidth from topWidth at y=0 to fullWidth at horizonY
+              const ratio = y / horizonY;
+              const lineWidth = topWidth + ratio * (fullWidth - topWidth);
               const xOffset = (canvas.width - lineWidth) / 2 + waveOffset;
 
-              // draw that single scanline from userImg
               ctx.drawImage(
                 userImg,
                 0, srcY, userImg.width, 1,
                 xOffset, y, lineWidth, 1
               );
-
             } else {
-              // below horizon: fully wide
+              // below horizon, use full width, plus wave
               const xOffset = waveOffset;
               ctx.drawImage(
                 userImg,
@@ -258,11 +255,11 @@
             }
           }
 
-          // now we put shlorp right at horizon
+          // place shlorp at horizon
           const shlorpScale = 0.3;
           const shlorpWidth = canvas.width * shlorpScale;
           const shlorpHeight = shlorpWidth * shlorpRatio;
-          const shlorpX = (canvas.width - shlorpWidth) / 2; 
+          const shlorpX = (canvas.width - shlorpWidth) / 2;
           const shlorpY = horizonY - shlorpHeight;
 
           ctx.drawImage(
