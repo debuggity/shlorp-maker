@@ -248,12 +248,16 @@
             const waveOffset = amplitude * Math.sin((y * waveFreq) + (i * 0.5));
             const xOffset = (canvas.width - lineWidth) / 2 + waveOffset;
 
-            const srcY = Math.floor((y / canvas.height) * userImg.height);
+            // **Adjusted srcY to map the entire image height to halfHeight**
+            const srcY = Math.floor((y / halfHeight) * userImg.height);
+
+            // Ensure srcY does not exceed the image height
+            const safeSrcY = Math.min(srcY, userImg.height - 1);
 
             ctx.drawImage(
               userImg,
-              0, srcY, userImg.width, 1,
-              xOffset, (y + halfHeight - 3), lineWidth, 1
+              0, safeSrcY, userImg.width, 1, // Source: single horizontal line from the image
+              xOffset, (y + halfHeight - 3), lineWidth, 1 // Destination: stretched to fit the canvas
             );
           }
 
@@ -269,9 +273,9 @@
             0, 0, shlorpImg.width, shlorpImg.height,
             shlorpX, shlorpY, shlorpWidth, shlorpHeight
           );
-        }
 
-        gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: frameDelay });
+          gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: frameDelay });
+        }
       }
     }
   </script>
