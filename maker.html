@@ -16,11 +16,11 @@
     <div class="home-button">
       <a href="index.html">🏠 Home</a>
     </div>
-  </header>  
+  </header>
 
   <main class="container">
     <section class="intro">
-      <p>Create adorable GIFs of your favorite animals shlorping!</p>
+      <p>Create adorable GIFs of shlorp!</p>
     </section>
 
     <section class="controls-section">
@@ -41,9 +41,18 @@
         </select>
       </div>
       
+      <!-- Updated speed-control block with inverted slider min/max -->
       <div class="speed-control">
         <label for="speedRange">Speed (delay per frame ms):</label>
-        <input type="range" id="speedRange" min="40" max="120" step="10" value="70" />
+        <!-- Note: min=120, max=40 (reversed) -->
+        <input 
+          type="range" 
+          id="speedRange" 
+          min="120" 
+          max="40" 
+          step="10" 
+          value="70" 
+        />
         <span id="speedValue">70</span>
       </div>
     </section>
@@ -109,8 +118,10 @@
       reader.readAsDataURL(file);
     });
 
+    // Update the displayed value to match the slider
     speedRange.addEventListener('input', () => {
-      speedValue.textContent = speedRange.value;
+      const sliderVal = parseInt(speedRange.value, 10);
+      speedValue.textContent = sliderVal;
     });
 
     createGifBtn.addEventListener('click', () => {
@@ -146,11 +157,11 @@
         };
       });
 
+      // The slider is inverted, so smaller value (to the right) = faster speed
       const frameDelay = parseInt(speedRange.value, 10);
       const chosenMode = modeSelect.value;
 
       buildFrames(gif, canvas, ctx, chosenMode, frameDelay);
-
       gif.render();
     });
 
@@ -198,7 +209,6 @@
           );
           ctx.restore();
 
-          // **Add this line so it actually becomes a GIF frame**
           gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: frameDelay });
 
         } else if (chosenMode === 'wave-distort') {
@@ -235,7 +245,6 @@
           );
           ctx.restore();
 
-          // **Add this line so it actually becomes a GIF frame**
           gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: frameDelay });
 
         } else if (chosenMode === 'puddle') {
