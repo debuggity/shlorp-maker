@@ -120,8 +120,6 @@
         workerScript: './js/gif.worker.js'
       });
 
-      gif.setSize(canvas.width, canvas.height);
-
       gif.on('finished', (blob) => {
         const gifURL = URL.createObjectURL(blob);
         gifPreview.src = gifURL;
@@ -226,49 +224,52 @@
           ctx.restore();
 
         } else if (chosenMode === 'puddle') {
-          // Define height of the bottom section where image will be drawn
-          const bottomHalf = canvas.height / 2;
-          const startY = bottomHalf; // Start drawing from halfway point
-          
-          // Clear the canvas first
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          
-          // Calculate dimensions for the image in bottom half
-          const aspectRatio = userImg.width / userImg.height;
-          const squishHeight = bottomHalf; // Use only bottom half height
-          const squishWidth = canvas.width; // Maintain canvas width
-          
-          // Loop through the bottom half only
-          for (let y = 0; y < squishHeight; y++) {
-            // Map the y position to source image coordinates
-            const srcY = Math.floor((y / squishHeight) * userImg.height);
-            const destY = startY + y;
-            
-            // Apply wave effect
+          // watery region: top half. from y=0 to y=halfHeight
+          // below that is normal. pinch top corners inward at y=0
+          // expand to full width at halfHeight
+
+          const halfHeight = canvas.height;
+
+          // how narrow do we want the top to be?  let's say 50% of full width
+          const topWidth = 0.5 * canvas.width; 
+          const fullWidth = canvas.width;
+
+          // loop through top half, applying perspective pinch + wave
+          for (let y = 0; y < halfHeight; y++) {
+            const ratio = y / halfHeight;
+            const lineWidth = topWidth + ratio * (fullWidth - topWidth);
+
             const waveOffset = amplitude * Math.sin((y * waveFreq) + (i * 0.5));
-            
-            // Draw each scanline
+            const xOffset = (canvas.width - lineWidth) / 2 + waveOffset;
+
+            // figure out which line of userImg we sample from
+            const srcY = Math.floor((y / canvas.height) * userImg.height);
+
             ctx.drawImage(
               userImg,
-              0, srcY, userImg.width, 1, // Source
-              waveOffset, destY, squishWidth, 1 // Destination
+              0, srcY, userImg.width, 1,
+              xOffset, y, lineWidth, 1
             );
           }
-          
-          // Place shlorp above the image
-          const shlorpScale = 0.25;
+
+          // place shlorp at the "horizon" => halfHeight
+          const shlorpScale = 0.25; // tweak as needed
           const shlorpWidth = canvas.width * shlorpScale;
           const shlorpHeight = shlorpWidth * shlorpRatio;
-          
+
+          // center shlorp horizontally
           const shlorpX = (canvas.width - shlorpWidth) / 2;
-          const shlorpY = startY - shlorpHeight; // Position just above the image
-          
+          // have him perched just above the horizon
+          const shlorpY = halfHeight - shlorpHeight;
+
           ctx.drawImage(
             shlorpImg,
             0, 0, shlorpImg.width, shlorpImg.height,
             shlorpX, shlorpY, shlorpWidth, shlorpHeight
           );
         }
+
+        gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: frameDelay });
       }
     }
   </script>
