@@ -19,13 +19,12 @@
       <input type="file" id="uploadInput" accept="image/*" />
     </div>
 
-    <!-- new style selection -->
     <div class="controls">
       <label for="modeSelect">choose style:</label>
       <select id="modeSelect">
         <option value="wave-distort">classic wave</option>
-        <option value="overlay-distort" selected>overlay wave</option>
-        <option value="puddle">puddle drinking</option>
+        <option value="overlay-distort">overlay wave</option>
+        <option value="puddle" selected>puddle perspective</option>
       </select>
     </div>
 
@@ -154,7 +153,7 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         if (chosenMode === 'overlay-distort') {
-          // overlay wave mode
+          // overlay wave
           ctx.drawImage(userImg, 0, 0, userImg.width, userImg.height,
             0, 0, canvas.width, canvas.height);
           const waterLine = canvas.height * (i / totalFrames);
@@ -174,7 +173,6 @@
           ctx.fillRect(0, waterLine, canvas.width, canvas.height - waterLine);
           ctx.restore();
 
-          // shlorp
           const shlorpScale = 0.3;
           const shlorpWidth = canvas.width * shlorpScale;
           const shlorpHeight = shlorpWidth * shlorpRatio;
@@ -194,7 +192,6 @@
           // classic wave-distort
           const waterLine = canvas.height * (i / totalFrames);
 
-          // distort below water
           for (let y = waterLine; y < canvas.height; y++) {
             const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
             const srcY = Math.floor((y / canvas.height) * userImg.height);
@@ -211,7 +208,6 @@
             0, 0, canvas.width, (canvas.height * i) / totalFrames
           );
 
-          // draw shlorp similarly
           const shlorpScale = 0.3;
           const shlorpWidth = canvas.width * shlorpScale;
           const shlorpHeight = shlorpWidth * shlorpRatio;
@@ -228,37 +224,46 @@
           ctx.restore();
 
         } else if (chosenMode === 'puddle') {
-          // new mode: puddle drinking
-          // distortion on the bottom of the image, plus stationary shlorp
-          const distortHeight = canvas.height * 0.3;
-          const normalHeight = canvas.height - distortHeight;
+          // perspective approach: pinch top corners to zero width at y=0
+          // then let it expand to full width by horizonY, wave-distort all lines
+          // place shlorp at horizonY to look like he's drinking from that edge
 
-          // draw top part un-distorted
-          ctx.drawImage(
-            userImg,
-            0, 0, userImg.width, Math.floor(userImg.height * (normalHeight / canvas.height)),
-            0, 0, canvas.width, normalHeight
-          );
+          const horizonY = Math.floor(canvas.height * 0.3); // tweak as desired
 
-          // distort bottom part to look like a rippling puddle
-          const framesFraction = i / totalFrames;
-          for (let y = normalHeight; y < canvas.height; y++) {
-            const offset = amplitude * Math.sin((y * waveFreq) + (i * 0.5));
+          for (let y = 0; y < canvas.height; y++) {
             const srcY = Math.floor((y / canvas.height) * userImg.height);
-            ctx.drawImage(
-              userImg,
-              0, srcY, userImg.width, 1,
-              offset, y, canvas.width, 1
-            );
+            const waveOffset = amplitude * Math.sin((y * waveFreq) + (i * 0.5));
+
+            if (y <= horizonY) {
+              // scale from 0 width at top to full width at horizon
+              const ratio = y / horizonY; 
+              const lineWidth = ratio * canvas.width;
+              const xOffset = (canvas.width - lineWidth) / 2 + waveOffset;
+
+              // draw that single scanline from userImg
+              ctx.drawImage(
+                userImg,
+                0, srcY, userImg.width, 1,
+                xOffset, y, lineWidth, 1
+              );
+
+            } else {
+              // below horizon: fully wide
+              const xOffset = waveOffset;
+              ctx.drawImage(
+                userImg,
+                0, srcY, userImg.width, 1,
+                xOffset, y, canvas.width, 1
+              );
+            }
           }
 
-          // draw shlorp in bottom region as if drinking
-          // he won't move, so no wave or X offset
+          // now we put shlorp right at horizon
           const shlorpScale = 0.3;
           const shlorpWidth = canvas.width * shlorpScale;
           const shlorpHeight = shlorpWidth * shlorpRatio;
-          const shlorpX = canvas.width * 0.35; 
-          const shlorpY = normalHeight - (shlorpHeight * 0.5);
+          const shlorpX = (canvas.width - shlorpWidth) / 2; 
+          const shlorpY = horizonY - shlorpHeight;
 
           ctx.drawImage(
             shlorpImg,
