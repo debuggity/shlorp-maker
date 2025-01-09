@@ -228,11 +228,10 @@
           // below that is normal. pinch top corners inward at y=0
           // expand to full width at halfHeight
 
-          const halfHeight = canvas.height / 2; // squished height
-          const fullHeight = canvas.height;
+          const halfHeight = canvas.height;
 
           // how narrow do we want the top to be?  let's say 50% of full width
-          const topWidth = 0.5 * canvas.width;
+          const topWidth = 0.5 * canvas.width; 
           const fullWidth = canvas.width;
 
           // loop through top half, applying perspective pinch + wave
@@ -244,7 +243,7 @@
             const xOffset = (canvas.width - lineWidth) / 2 + waveOffset;
 
             // figure out which line of userImg we sample from
-            const srcY = Math.floor((y / fullHeight) * userImg.height);
+            const srcY = Math.floor((y / canvas.height) * userImg.height);
 
             ctx.drawImage(
               userImg,
@@ -268,16 +267,6 @@
             0, 0, shlorpImg.width, shlorpImg.height,
             shlorpX, shlorpY, shlorpWidth, shlorpHeight
           );
-
-          // draw the squished lower half of the image
-          for (let y = halfHeight; y < fullHeight; y++) {
-            const srcY = Math.floor((y / fullHeight) * userImg.height);
-            ctx.drawImage(
-              userImg,
-              0, srcY, userImg.width, 1,
-              0, y, canvas.width, 1
-            );
-          }
         }
 
         gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: frameDelay });
