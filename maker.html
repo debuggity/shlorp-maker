@@ -164,7 +164,7 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         if (chosenMode === 'overlay-distort') {
-          // Overlay Wave
+          // overlay wave
           ctx.drawImage(userImg, 0, 0, userImg.width, userImg.height,
             0, 0, canvas.width, canvas.height);
           const waterLine = canvas.height * (i / totalFrames);
@@ -180,7 +180,7 @@
           }
           ctx.save();
           ctx.globalCompositeOperation = 'source-atop';
-          ctx.fillStyle = 'rgba(135, 206, 235, 0.3)'; // Light Sky Blue with transparency
+          ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
           ctx.fillRect(0, waterLine, canvas.width, canvas.height - waterLine);
           ctx.restore();
 
@@ -200,7 +200,7 @@
           ctx.restore();
 
         } else if (chosenMode === 'wave-distort') {
-          // Classic Wave Distort
+          // classic wave-distort
           const waterLine = canvas.height * (i / totalFrames);
 
           for (let y = waterLine; y < canvas.height; y++) {
@@ -212,7 +212,7 @@
               offset, y, canvas.width, 1
             );
           }
-          // Normal Top Part
+          // normal top part
           ctx.drawImage(
             userImg,
             0, 0, userImg.width, Math.floor((userImg.height * i) / totalFrames),
