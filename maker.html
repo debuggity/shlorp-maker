@@ -238,7 +238,7 @@
           // Puddle Perspective
           const halfHeight = canvas.height;
 
-          const topWidth = 0.5 * canvas.width; 
+          const topWidth = 0.3 * canvas.width; 
           const fullWidth = canvas.width;
 
           for (let y = 0; y < halfHeight; y++) {
@@ -261,8 +261,8 @@
           const shlorpWidth = canvas.width * shlorpScale;
           const shlorpHeight = shlorpWidth * shlorpRatio;
 
-          const shlorpX = (canvas.width - shlorpWidth) / 2;
-          const shlorpY = halfHeight - shlorpHeight;
+          const shlorpX = (canvas.width - shlorpWidth);
+          const shlorpY = shlorpHeight * 3;
 
           ctx.drawImage(
             shlorpImg,
