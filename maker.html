@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>shlorp drinking gif maker</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+
+  <div class="home-button">
+    <a href="index.html">home</a>
+  </div>  
+
+  <div class="container">
+    <h1>make a shlorp drinking gif</h1>
+
+    <div class="controls">
+      <label for="uploadInput" class="custom-upload-btn">choose an image</label>
+      <input type="file" id="uploadInput" accept="image/*" />
+    </div>
+
+    <div class="toggle-container">
+      <label class="toggle-switch">
+        <input type="checkbox" id="overlayModeCheckbox" checked />
+        <span class="slider round"></span>
+      </label>
+      <span class="toggle-label">overlay mode</span>
+    </div>
+
+    <!-- new speed control -->
+    <div class="speed-control">
+      <label for="speedRange">speed (delay per frame ms): </label>
+      <input type="range" id="speedRange" min="40" max="120" step="10" value="70" />
+      <span id="speedValue">70</span>
+    </div>
+
+    <canvas id="previewCanvas"></canvas>
+
+    <div class="controls button-group">
+      <button class="btn" id="createGifBtn" disabled>create shlorp gif</button>
+      <button class="btn" id="downloadGifBtn" style="display:none;">download gif</button>
+    </div>
+
+    <img id="gifPreview" alt="generated gif preview" />
+
+  </div>
+
+  <script src="./js/gif.js"></script>
+
+  <script>
+    const uploadInput      = document.getElementById('uploadInput');
+    const previewCanvas    = document.getElementById('previewCanvas');
+    const createGifBtn     = document.getElementById('createGifBtn');
+    const downloadGifBtn   = document.getElementById('downloadGifBtn');
+    const gifPreview       = document.getElementById('gifPreview');
+    const previewCtx       = previewCanvas.getContext('2d');
+    const overlayModeCheck = document.getElementById('overlayModeCheckbox');
+    const speedRange       = document.getElementById('speedRange');
+    const speedValue       = document.getElementById('speedValue');
+
+    const shlorpImg = new Image();
+    shlorpImg.src = './assets/shlorp-nobg.png';
+
+    let userImg = new Image();
+
+    function fitTo512(img) {
+      const maxSize = 512;
+      const scale = Math.min(maxSize / img.width, maxSize / img.height);
+      const newWidth = Math.round(img.width * scale);
+      const newHeight = Math.round(img.height * scale);
+      return { newWidth, newHeight };
+    }
+
+    uploadInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        userImg.onload = () => {
+          const { newWidth, newHeight } = fitTo512(userImg);
+          previewCanvas.width = newWidth;
+          previewCanvas.height = newHeight;
+          previewCtx.clearRect(0, 0, newWidth, newHeight);
+          previewCtx.drawImage(userImg, 0, 0, newWidth, newHeight);
+          createGifBtn.disabled = false;
+        };
+        userImg.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // update displayed speed value
+    speedRange.addEventListener('input', () => {
+      speedValue.textContent = speedRange.value;
+    });
+
+    createGifBtn.addEventListener('click', () => {
+      if (!userImg.src) return;
+
+      createGifBtn.disabled = true;
+      gifPreview.style.display = 'none';
+      downloadGifBtn.style.display = 'none';
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = previewCanvas.width;
+      canvas.height = previewCanvas.height;
+
+      const gif = new GIF({
+        workers: 2,
+        quality: 20,
+        workerScript: './js/gif.worker.js'
+      });
+
+      gif.on('finished', (blob) => {
+        const gifURL = URL.createObjectURL(blob);
+        gifPreview.src = gifURL;
+        gifPreview.style.display = 'block';
+        downloadGifBtn.style.display = 'inline-block';
+        createGifBtn.disabled = false;
+
+        downloadGifBtn.onclick = () => {
+          const a = document.createElement('a');
+          a.href = gifURL;
+          a.download = 'shlorp.gif';
+          a.click();
+        };
+      });
+
+      const overlayMode = overlayModeCheck.checked;
+      const frameDelay = parseInt(speedRange.value, 10);
+
+      buildFrames(gif, canvas, ctx, overlayMode, frameDelay);
+    });
+
+    function buildFrames(gif, canvas, ctx, overlayMode, frameDelay) {
+      const totalFrames = 24;
+      const amplitude = 8;
+      const waveFreq = 0.06;
+
+      const shlorpRatio = shlorpImg.height / shlorpImg.width;
+
+      for (let i = 0; i <= totalFrames; i++) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (overlayMode) {
+          ctx.drawImage(userImg, 0, 0, userImg.width, userImg.height,
+            0, 0, canvas.width, canvas.height);
+        }
+
+        const waterLine = canvas.height * (i / totalFrames);
+
+        if (!overlayMode) {
+          for (let y = waterLine; y < canvas.height; y++) {
+            const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
+            const srcY = Math.floor((y / canvas.height) * userImg.height);
+            ctx.drawImage(
+              userImg,
+              0, srcY, userImg.width, 1,
+              offset, y, canvas.width, 1
+            );
+          }
+        } else {
+          for (let y = waterLine; y < canvas.height; y++) {
+            const offset = amplitude * Math.sin(y * waveFreq + i * 0.5);
+            const srcY = Math.floor((y / canvas.height) * userImg.height);
+            ctx.drawImage(
+              userImg,
+              0, srcY, userImg.width, 1,
+              offset, y, canvas.width, 1
+            );
+          }
+          ctx.save();
+          ctx.globalCompositeOperation = 'source-atop';
+          ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
+          ctx.fillRect(0, waterLine, canvas.width, canvas.height - waterLine);
+          ctx.restore();
+        }
+
+        const shlorpScale = 0.3;
+        const shlorpWidth = canvas.width * shlorpScale;
+        const shlorpHeight = shlorpWidth * shlorpRatio;
+        const shlorpX = -(canvas.width / 15);
+        const shlorpY = waterLine - shlorpHeight + (shlorpHeight * 0.0738);
+
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(
+          shlorpImg,
+          0, 0, shlorpImg.width, shlorpImg.height,
+          -shlorpWidth, shlorpY, shlorpWidth, shlorpHeight
+        );
+        ctx.restore();
+
+        gif.addFrame(ctx.getImageData(0, 0, canvas.width, canvas.height), { delay: frameDelay });
+      }
+
+      gif.render();
+    }
+  </script>
+</body>
+</html>
