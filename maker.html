@@ -120,6 +120,8 @@
         workerScript: './js/gif.worker.js'
       });
 
+      gif.setSize(canvas.width, canvas.height);
+
       gif.on('finished', (blob) => {
         const gifURL = URL.createObjectURL(blob);
         gifPreview.src = gifURL;
@@ -224,53 +226,43 @@
           ctx.restore();
 
         } else if (chosenMode === 'puddle') {
-          // Define canvas dimensions and midpoint
-          const halfHeight = canvas.height / 2;
+          // Define height of the bottom section where image will be drawn
+          const bottomHalf = canvas.height / 2;
+          const startY = bottomHalf; // Start drawing from halfway point
           
-          // Draw the reflection in bottom half
-          for (let y = 0; y < halfHeight; y++) {
-            // Calculate the vertical scale factor that increases with y
-            // This creates a "squished" effect that gets more compressed further down
-            const progress = y / halfHeight;
-            const compressionFactor = 1 + (progress * 0.5); // Increase compression as we go down
+          // Clear the canvas first
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // Calculate dimensions for the image in bottom half
+          const aspectRatio = userImg.width / userImg.height;
+          const squishHeight = bottomHalf; // Use only bottom half height
+          const squishWidth = canvas.width; // Maintain canvas width
+          
+          // Loop through the bottom half only
+          for (let y = 0; y < squishHeight; y++) {
+            // Map the y position to source image coordinates
+            const srcY = Math.floor((y / squishHeight) * userImg.height);
+            const destY = startY + y;
             
-            // Calculate source and destination coordinates
-            const srcY = Math.floor((y / halfHeight) * userImg.height);
-            const destY = halfHeight + (y * compressionFactor);
+            // Apply wave effect
+            const waveOffset = amplitude * Math.sin((y * waveFreq) + (i * 0.5));
             
-            // Calculate wave effect that increases with depth
-            const waveAmplitude = amplitude * (1 + progress); // Wave gets stronger further down
-            const waveOffset = waveAmplitude * Math.sin((y * waveFreq) + (i * 0.5));
-            
-            // Calculate the width scaling to maintain perspective
-            const widthScale = 1 - (progress * 0.3); // Image gets slightly narrower further down
-            const scaledWidth = userImg.width * widthScale;
-            const xOffset = (canvas.width - scaledWidth) / 2 + waveOffset;
-            
-            // Draw the scanline with perspective distortion
+            // Draw each scanline
             ctx.drawImage(
               userImg,
               0, srcY, userImg.width, 1, // Source
-              xOffset, destY, scaledWidth, 1.5 // Destination (slightly thicker lines to avoid gaps)
+              waveOffset, destY, squishWidth, 1 // Destination
             );
           }
           
-          // Add a subtle darkening gradient to the reflection
-          const gradient = ctx.createLinearGradient(0, halfHeight, 0, canvas.height);
-          gradient.addColorStop(0, 'rgba(0, 0, 0, 0.1)');
-          gradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
-          ctx.fillStyle = gradient;
-          ctx.fillRect(0, halfHeight, canvas.width, halfHeight);
-          
-          // Position shlorp at the horizon line
+          // Place shlorp above the image
           const shlorpScale = 0.25;
           const shlorpWidth = canvas.width * shlorpScale;
           const shlorpHeight = shlorpWidth * shlorpRatio;
           
           const shlorpX = (canvas.width - shlorpWidth) / 2;
-          const shlorpY = halfHeight - shlorpHeight;
+          const shlorpY = startY - shlorpHeight; // Position just above the image
           
-          // Draw shlorp
           ctx.drawImage(
             shlorpImg,
             0, 0, shlorpImg.width, shlorpImg.height,
